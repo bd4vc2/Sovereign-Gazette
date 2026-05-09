@@ -1,0 +1,23 @@
+name: Daily Sovereign Gazette
+on:
+  schedule:
+    # 14:00 UTC is 07:00 MST
+    - cron: '0 14 * * *'
+  workflow_dispatch: # Allows you to run it manually for testing
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: pip install discord.py requests
+      - name: Run Bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: python bot.py
