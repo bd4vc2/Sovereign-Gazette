@@ -2,7 +2,7 @@ import discord
 import os
 import feedparser
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- CONFIG ---
 TOKEN = os.getenv('BOT_TOKEN')
@@ -54,13 +54,13 @@ def get_tanque_verde_weather():
     except Exception:
         return "📡 *Weather telegraph lines disconnected.*"
 
-def calculate_gta_countdown():
+def calculate_gta_countdown(current_local_time):
     target_date = datetime(2026, 11, 1)  # Target: November 2026
-    delta = target_date - datetime.now()
+    delta = target_date - current_local_time
     return f"⏳ {delta.days} DAYS UNTIL GRAND THEFT AUTO VI EXPECTED LAUNCH" if delta.days > 0 else "🔥 GTA VI ACTIVE"
 
-def generate_daily_agenda():
-    day_name = datetime.now().strftime("%A")
+def generate_daily_agenda(current_local_time):
+    day_name = current_local_time.strftime("%A")
     
     if day_name in ["Monday", "Wednesday", "Friday"]:
         workout_text = (
@@ -98,12 +98,15 @@ class DispatchBot(discord.Client):
             story_5, hit_5 = scout_wire_service(FEEDS["nintendo"])
             story_6, hit_6 = scout_wire_service(FEEDS["space"])
 
-            weather_report = get_tanque_verde_weather()
-            gta_ticker = calculate_gta_countdown()
-            summer_agenda = generate_daily_agenda()
+            # Adjust for Mountain Standard Time (UTC - 7) inside the runner container
+            mst_now = datetime.utcnow() - timedelta(hours=7)
 
-            # Dynamic greetings based on time of day
-            hour = datetime.now().hour
+            weather_report = get_tanque_verde_weather()
+            gta_ticker = calculate_gta_countdown(mst_now)
+            summer_agenda = generate_daily_agenda(mst_now)
+
+            # Dynamic greetings calibrated for local MST hours
+            hour = mst_now.hour
             if hour < 12:
                 greeting = "🗞️ **The morning paper has arrived.**"
                 edition_label = "MORNING EDITION"
@@ -116,7 +119,7 @@ class DispatchBot(discord.Client):
 
             has_scoop = any([hit_1, hit_2, hit_3, hit_4, hit_5, hit_6])
             paper_title = "📰 THE METROPOLIS DISPATCH  [SPECIAL EDITION]" if has_scoop else "📰 THE METROPOLIS DISPATCH"
-            current_date = datetime.now().strftime("%B %d, %Y").upper()
+            current_date = mst_now.strftime("%B %d, %Y").upper()
 
             embed = discord.Embed(
                 title=paper_title,
@@ -130,9 +133,7 @@ class DispatchBot(discord.Client):
             
             embed.add_field(name="═" * 32, value="**TODAY'S TOP CHRONICLES**", inline=False)
             
-            # Counter to track how many high-interest stories are found
             scoop_count = 0
-            
             for name, data in [("LEAD CHRONICLE", (story_1, hit_1)), ("NINTENDO INTELLIGENCE", (story_5, hit_5)), 
                                ("THE HANGAR & FRONTIER", (story_6 if hit_6 else story_2, hit_6 if hit_6 else hit_2)),
                                ("THE TECH CIRCUIT", (story_3, hit_3)), ("AMUSEMENTS & AUDIO", (story_4, hit_4))]:
@@ -143,7 +144,6 @@ class DispatchBot(discord.Client):
                 val = f"{prefix}[{story.title}]({story.link})" if story else "▫️ *Telegraph wire down.*"
                 embed.add_field(name=name, value=val, inline=False)
 
-            # Add a summary ticker badge if multiple keyword items were spotted
             if scoop_count > 0:
                 embed.add_field(name="🚨 METROPOLIS WIRE ALERTS", value=f"`⚠️ PROXIMITY TELEGRAPH DETECTED {scoop_count} HIGH-PRIORITY STORIES IN YOUR FIELDS OF INTEREST.`", inline=False)
 
@@ -151,8 +151,7 @@ class DispatchBot(discord.Client):
             embed.set_footer(text="Published daily via GitHub Automation Services.")
         
             user = await self.fetch_user(MY_USER_ID)
-            dm_channel = user.dm_channel or await user.create_dm()
-            await dm_channel.send(content=greeting, embed=embed)
+            await user.send(content=greeting, embed=embed)
             print("Dispatch delivered successfully.")
             
         except Exception as e:
@@ -160,8 +159,9 @@ class DispatchBot(discord.Client):
         finally:
             await self.close()
 
+# Fixed Intent handling flags for secure DM initialization
 intents = discord.Intents.default()
-intents.members = True 
+intents.dm_messages = True
 
 client = DispatchBot(intents=intents)
 client.run(TOKEN)
