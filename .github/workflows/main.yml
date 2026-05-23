@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: '3.9'
       - name: Install dependencies
-        run: pip install discord.py requests
+        run: pip install discord.py requests feedparser
       - name: Run Bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
