@@ -59,6 +59,32 @@ def calculate_gta_countdown():
     delta = target_date - datetime.now()
     return f"⏳ {delta.days} DAYS UNTIL GRAND THEFT AUTO VI EXPECTED LAUNCH" if delta.days > 0 else "🔥 GTA VI ACTIVE"
 
+def generate_daily_agenda():
+    day_name = datetime.now().strftime("%A")
+    
+    if day_name in ["Monday", "Wednesday", "Friday"]:
+        workout_text = (
+            "🏋️ **SUMMER STRENGTH DAY**\n"
+            "• *Warm-up (3m):* Jump rope / jacks to Rise Against\n"
+            "• *Circuit (3 rounds):* 5 Incline Push-ups, 10 Squats/Lunges, 30s Plank"
+        )
+    else:
+        workout_text = "🛋️ **RECOVERY DAY:** Rest up, stay active, let the muscles rebuild."
+
+    agenda_str = (
+        "🍏 **DAILY FUEL & NUTRIENTS**\n"
+        "▫️ *Protein:* Eggs, chicken, milk, or peanut butter with meals\n"
+        "▫️ *Energy:* Oats, rice, potatoes, or whole grains\n"
+        "▫️ *Hydration:* Drink clear-urine levels of fresh water\n\n"
+        f"{workout_text}\n\n"
+        "📋 **BEFORE MIDNIGHT CHECKLIST**\n"
+        "[ ] Hit the 3-Meal Rule for growth fuel\n"
+        "[ ] Complete today's physical activity/rest\n"
+        "[ ] Screen-free wind down 30 mins before bed\n"
+        "[ ] Secure 8 to 10 hours of high-quality sleep"
+    )
+    return agenda_str
+
 class DispatchBot(discord.Client):
     async def on_ready(self):
         print(f'Logged in as {self.user}')
@@ -74,6 +100,19 @@ class DispatchBot(discord.Client):
 
             weather_report = get_tanque_verde_weather()
             gta_ticker = calculate_gta_countdown()
+            summer_agenda = generate_daily_agenda()
+
+            # Dynamic greetings based on time of day
+            hour = datetime.now().hour
+            if hour < 12:
+                greeting = "🗞️ **The morning paper has arrived.**"
+                edition_label = "MORNING EDITION"
+            elif hour < 17:
+                greeting = "🗞️ **The afternoon edition is hot off the press.**"
+                edition_label = "AFTERNOON EDITION"
+            else:
+                greeting = "🗞️ **The evening bulletin has been delivered.**"
+                edition_label = "EVENING BULLETIN"
 
             has_scoop = any([hit_1, hit_2, hit_3, hit_4, hit_5, hit_6])
             paper_title = "📰 THE METROPOLIS DISPATCH  [SPECIAL EDITION]" if has_scoop else "📰 THE METROPOLIS DISPATCH"
@@ -81,27 +120,39 @@ class DispatchBot(discord.Client):
 
             embed = discord.Embed(
                 title=paper_title,
-                description=f"**CITY EDITION • {current_date} • PRICE: FREE**\n" + "═" * 32,
+                description=f"**{edition_label} • {current_date} • PRICE: FREE**\n" + "═" * 32,
                 color=0x34495e
             )
             
             embed.add_field(name="📍 TANQUE VERDE WIRE", value=f"*{weather_report}*", inline=False)
+            embed.add_field(name="═" * 32, value="📝 **DAILY SUMMER ROUTINE & AGENDA**", inline=False)
+            embed.add_field(name="TODAY'S REQUIREMENTS", value=summer_agenda, inline=False)
+            
             embed.add_field(name="═" * 32, value="**TODAY'S TOP CHRONICLES**", inline=False)
+            
+            # Counter to track how many high-interest stories are found
+            scoop_count = 0
             
             for name, data in [("LEAD CHRONICLE", (story_1, hit_1)), ("NINTENDO INTELLIGENCE", (story_5, hit_5)), 
                                ("THE HANGAR & FRONTIER", (story_6 if hit_6 else story_2, hit_6 if hit_6 else hit_2)),
                                ("THE TECH CIRCUIT", (story_3, hit_3)), ("AMUSEMENTS & AUDIO", (story_4, hit_4))]:
                 story, hit = data
+                if hit:
+                    scoop_count += 1
                 prefix = "◆ **BREAKING:** " if hit else "▫️ "
                 val = f"{prefix}[{story.title}]({story.link})" if story else "▫️ *Telegraph wire down.*"
                 embed.add_field(name=name, value=val, inline=False)
+
+            # Add a summary ticker badge if multiple keyword items were spotted
+            if scoop_count > 0:
+                embed.add_field(name="🚨 METROPOLIS WIRE ALERTS", value=f"`⚠️ PROXIMITY TELEGRAPH DETECTED {scoop_count} HIGH-PRIORITY STORIES IN YOUR FIELDS OF INTEREST.`", inline=False)
 
             embed.add_field(name="═" * 32, value=f"🎰 **ROCKSTAR MARKET TICKER**\n\n`{gta_ticker}`", inline=False)
             embed.set_footer(text="Published daily via GitHub Automation Services.")
         
             user = await self.fetch_user(MY_USER_ID)
             dm_channel = user.dm_channel or await user.create_dm()
-            await dm_channel.send(content="🗞️ **The morning paper has arrived.**", embed=embed)
+            await dm_channel.send(content=greeting, embed=embed)
             print("Dispatch delivered successfully.")
             
         except Exception as e:
