@@ -1,32 +1,61 @@
 import discord
 import os
-import requests
+import feedparser
 
 # --- CONFIG ---
 TOKEN = os.getenv('BOT_TOKEN')
 MY_USER_ID = 1474235994789380330
-# Using the raw URL ensures we always get the plain text
-GIST_URL = "https://gist.githubusercontent.com/bd4vc2/dbd9213712fbf3467acb4e3d0c2b2b3a/raw/5cc2b1fc84b64fa67e618c3bb0a3cb7c8053054b/news.txt"
+
+# Live RSS feeds for gaming sites
+FEEDS = {
+    "front_page": "https://corp.ign.com/feeds",          # IGN Main Feed
+    "the_hangar": "https://www.gamespot.com/feeds/news/", # GameSpot News
+    "the_circuit": "https://www.pcgamer.com/rss/"         # PC Gamer Feed
+}
 
 class GazetteBot(discord.Client):
     async def on_ready(self):
         print(f'Logged in as {self.user}')
         
         try:
-            # 1. Fetch news from Gist
-            response = requests.get(GIST_URL)
-            response.raise_for_status() # Crashes gracefully if Gist is down
-            content = response.text.strip()
-            
+            # 1. Automatically fetch live news from the RSS feeds
+            print("Fetching live news feeds...")
+            ign_feed = feedparser.parse(FEEDS["front_page"])
+            gamespot_feed = feedparser.parse(FEEDS["the_hangar"])
+            pcgamer_feed = feedparser.parse(FEEDS["the_circuit"])
+
+            # Extract the top entry from each feed (with safety fallback if a site is down)
+            front_page_story = ign_feed.entries[0] if ign_feed.entries else None
+            the_hangar_story = gamespot_feed.entries[0] if gamespot_feed.entries else None
+            the_circuit_story = pcgamer_feed.entries[0] if pcgamer_feed.entries else None
+
             # 2. Format Embed
-            parts = content.split('|')
             embed = discord.Embed(title="THE VELOSOVEREIGN GAZETTE", color=0x2ecc71)
-            sections = ["📰 FRONT PAGE", "🚀 THE HANGAR", "🏎️ THE CIRCUIT"]
             
-            for i, part in enumerate(parts):
-                if i < len(sections):
-                    embed.add_field(name=sections[i], value=part.strip(), inline=False)
+            # Populate FRONT PAGE (IGN)
+            if front_page_story:
+                embed.add_field(
+                    name="📰 FRONT PAGE", 
+                    value=f"[{front_page_story.title}]({front_page_story.link})", 
+                    inline=False
+                )
             
+            # Populate THE HANGAR (GameSpot)
+            if the_hangar_story:
+                embed.add_field(
+                    name="🚀 THE HANGAR", 
+                    value=f"[{the_hangar_story.title}]({the_hangar_story.link})", 
+                    inline=False
+                )
+            
+            # Populate THE CIRCUIT (PC Gamer)
+            if the_circuit_story:
+                embed.add_field(
+                    name="🏎️ THE CIRCUIT", 
+                    value=f"[{the_circuit_story.title}]({the_circuit_story.link})", 
+                    inline=False
+                )
+        
             # 3. Send DM
             user = await self.fetch_user(MY_USER_ID)
             await user.send(content="🔔 **Sovereign Briefing Delivered.**", embed=embed)
@@ -36,11 +65,11 @@ class GazetteBot(discord.Client):
             print(f"An error occurred during execution: {e}")
             
         finally:
-            # 4. Shut down (Task Complete) - wrapped in finally so it always exits
+            # 4. Shut down (Task Complete)
             print("Shutting down bot...")
             await self.close()
 
-# FIX: We need to explicitly allow the bot to see server members / user profiles
+# Ensure intents are handled
 intents = discord.Intents.default()
 intents.members = True 
 
