@@ -9,12 +9,12 @@ TOKEN = os.getenv('BOT_TOKEN')
 MY_USER_ID = 1474235994789380330
 
 FEEDS = {
-    "front_page": "https://www.ign.com/rss/articles/news",
-    "hangar": "https://www.gamespot.com/feeds/news/",
-    "circuit": "https://www.pcgamer.com/rss/",
-    "audio_anime": "https://www.stereogum.com/feed/",
-    "nintendo": "https://www.nintendolife.com/feeds/latest",
-    "space": "https://www.space.com/feeds/all"
+    "front_page": "https://feeds.feedburner.com/ign/news",       # Fixed IGN Global Gaming Wire
+    "hangar": "https://spaceflightnow.com/feed/",                 # SpaceX & Orbital Launch Tracking
+    "circuit": "https://www.pcgamer.com/rss/",                    # Hardcore PC Gaming & Hardware News
+    "audio_anime": "https://www.gamespot.com/feeds/news/",        # GameSpot Main News Feed
+    "nintendo": "https://www.nintendolife.com/feeds/latest",      # Nintendo Switch & Next-Gen Intel
+    "space": "https://www.nasa.gov/news-release/feed/"            # NASA Headquarters Breaking Bulletins
 }
 
 MY_INTERESTS = [
