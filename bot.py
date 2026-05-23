@@ -56,9 +56,13 @@ class GazetteBot(discord.Client):
                     inline=False
                 )
         
-            # 3. Send DM
+            # 3. Send DM (Forced for headless/cloud environments)
             user = await self.fetch_user(MY_USER_ID)
-            await user.send(content="🔔 **Sovereign Briefing Delivered.**", embed=embed)
+            dm_channel = user.dm_channel
+            if dm_channel is None:
+                dm_channel = await user.create_dm()
+                
+            await dm_channel.send(content="🔔 **Sovereign Briefing Delivered.**", embed=embed)
             print("Gazette delivered successfully!")
             
         except Exception as e:
