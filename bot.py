@@ -7,7 +7,6 @@ from datetime import datetime
 TOKEN = os.getenv('BOT_TOKEN')
 MY_USER_ID = 1474235994789380330
 
-# Live news desks
 FEEDS = {
     "front_page": "https://www.ign.com/rss/articles/news",
     "hangar": "https://www.gamespot.com/feeds/news/",
@@ -15,7 +14,6 @@ FEEDS = {
     "audio_anime": "https://www.stereogum.com/feed/"
 }
 
-# The Dispatch investigative watchlist
 MY_INTERESTS = [
     "nintendo", "switch", "zelda", "mario", "metroid", "pokemon", "yoshi",
     "ksp", "kerbal", "space", "nasa", "spacex", "orbit",
@@ -52,7 +50,7 @@ class DispatchBot(discord.Client):
             story_3, hit_3 = scout_wire_service(FEEDS["circuit"])
             
             story_4, hit_4 = scout_wire_service(FEEDS["audio_anime"])
-            if not story_4: # Anime backup wire
+            if not story_4:
                 crunchy = feedparser.parse("https://www.crunchyroll.com/news/rss")
                 if crunchy.entries:
                     story_4, hit_4 = scout_wire_service("https://www.crunchyroll.com/news/rss")
@@ -60,7 +58,7 @@ class DispatchBot(discord.Client):
             # Determine Edition Status
             has_scoop = any([hit_1, hit_2, hit_3, hit_4])
             paper_title = "📰 THE METROPOLIS DISPATCH  [SPECIAL EDITION]" if has_scoop else "📰 THE METROPOLIS DISPATCH"
-            paper_color = 0x34495e  # Deep Inkwell Grey (looks like actual newsprint)
+            paper_color = 0x34495e  # Deep Inkwell Grey
             
             current_date = datetime.now().strftime("%B %d, %Y").upper()
 
@@ -72,24 +70,24 @@ class DispatchBot(discord.Client):
             )
             
             # 1. FRONT PAGE DESK
-            if story_1:
-                prefix = "◆ **BREAKING:** " if hit_1 else "▫️ "
-                embed.add_field(name="LEAD CHRONICLE", value=f"{prefix}[{story_1.title}]({story_1.link})", inline=False)
+            prefix = "◆ **BREAKING:** " if hit_1 else "▫️ "
+            val = f"{prefix}[{story_1.title}]({story_1.link})" if story_1 else "▫️ *Press wires quiet on the front page.*"
+            embed.add_field(name="LEAD CHRONICLE", value=val, inline=False)
             
             # 2. THE HANGAR DESK
-            if story_2:
-                prefix = "◆ **BREAKING:** " if hit_2 else "▫️ "
-                embed.add_field(name="THE HANGAR & FRONTIER", value=f"{prefix}[{story_2.title}]({story_2.link})", inline=False)
+            prefix = "◆ **BREAKING:** " if hit_2 else "▫️ "
+            val = f"{prefix}[{story_2.title}]({story_2.link})" if story_2 else "▫️ *No updates from the hangar desk.*"
+            embed.add_field(name="THE HANGAR & FRONTIER", value=val, inline=False)
             
             # 3. THE CIRCUIT DESK
-            if story_3:
-                prefix = "◆ **BREAKING:** " if hit_3 else "▫️ "
-                embed.add_field(name="THE TECH CIRCUIT", value=f"{prefix}[{story_3.title}]({story_3.link})", inline=False)
+            prefix = "◆ **BREAKING:** " if hit_3 else "▫️ "
+            val = f"{prefix}[{story_3.title}]({story_3.link})" if story_3 else "▫️ *Silicon wires report no changes.*"
+            embed.add_field(name="THE TECH CIRCUIT", value=val, inline=False)
             
             # 4. AUDIO & ENTERTAINMENT DESK
-            if story_4:
-                prefix = "◆ **BREAKING:** " if hit_4 else "▫️ "
-                embed.add_field(name="AMUSEMENTS & AUDIO", value=f"{prefix}[{story_4.title}]({story_4.link})", inline=False)
+            prefix = "◆ **BREAKING:** " if hit_4 else "▫️ "
+            val = f"{prefix}[{story_4.title}]({story_4.link})" if story_4 else "▫️ *Amusements and broadcasts quiet.*"
+            embed.add_field(name="AMUSEMENTS & AUDIO", value=val, inline=False)
 
             embed.add_field(name="═" * 32, value="*Late deliveries reported to local distributors.*", inline=False)
             embed.set_footer(text="Published daily via GitHub Automation Services.")
