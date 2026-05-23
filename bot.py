@@ -1,81 +1,113 @@
 import discord
 import os
 import feedparser
+from datetime import datetime
 
 # --- CONFIG ---
 TOKEN = os.getenv('BOT_TOKEN')
 MY_USER_ID = 1474235994789380330
 
-# Live RSS feeds for gaming sites
+# Live news desks
 FEEDS = {
-    "front_page": "https://corp.ign.com/feeds",          # IGN Main Feed
-    "the_hangar": "https://www.gamespot.com/feeds/news/", # GameSpot News
-    "the_circuit": "https://www.pcgamer.com/rss/"         # PC Gamer Feed
+    "front_page": "https://www.ign.com/rss/articles/news",
+    "hangar": "https://www.gamespot.com/feeds/news/",
+    "circuit": "https://www.pcgamer.com/rss/",
+    "audio_anime": "https://www.stereogum.com/feed/"
 }
 
-class GazetteBot(discord.Client):
+# The Dispatch investigative watchlist
+MY_INTERESTS = [
+    "nintendo", "switch", "zelda", "mario", "metroid", "pokemon", "yoshi",
+    "ksp", "kerbal", "space", "nasa", "spacex", "orbit",
+    "rockstar", "gta", "grand theft auto", "red dead", "rdr", "marston", "take-two",
+    "rise against", "linkin park", "chester bennington", "from zero",
+    "project zomboid", "zomboid", "subnautica", "unknown worlds",
+    "jojo", "bizarre adventure", "jojo's", "anime", "manga", "crunchyroll"
+]
+
+def scout_wire_service(feed_url):
+    """Scans the press wires for matching beats. Falls back to top story if clear."""
+    feed = feedparser.parse(feed_url)
+    if not feed.entries:
+        return None, False
+        
+    for entry in feed.entries[:15]:
+        title_lower = entry.title.lower()
+        summary_lower = entry.get('summary', '').lower()
+        if any(keyword in title_lower or keyword in summary_lower for keyword in MY_INTERESTS):
+            return entry, True
+            
+    return feed.entries[0], False
+
+class DispatchBot(discord.Client):
     async def on_ready(self):
         print(f'Logged in as {self.user}')
         
         try:
-            # 1. Automatically fetch live news from the RSS feeds
-            print("Fetching live news feeds...")
-            ign_feed = feedparser.parse(FEEDS["front_page"])
-            gamespot_feed = feedparser.parse(FEEDS["the_hangar"])
-            pcgamer_feed = feedparser.parse(FEEDS["the_circuit"])
+            print("Printing morning edition...")
+            
+            # Read the wires
+            story_1, hit_1 = scout_wire_service(FEEDS["front_page"])
+            story_2, hit_2 = scout_wire_service(FEEDS["hangar"])
+            story_3, hit_3 = scout_wire_service(FEEDS["circuit"])
+            
+            story_4, hit_4 = scout_wire_service(FEEDS["audio_anime"])
+            if not story_4: # Anime backup wire
+                crunchy = feedparser.parse("https://www.crunchyroll.com/news/rss")
+                if crunchy.entries:
+                    story_4, hit_4 = scout_wire_service("https://www.crunchyroll.com/news/rss")
 
-            # Extract the top entry from each feed (with safety fallback if a site is down)
-            front_page_story = ign_feed.entries[0] if ign_feed.entries else None
-            the_hangar_story = gamespot_feed.entries[0] if gamespot_feed.entries else None
-            the_circuit_story = pcgamer_feed.entries[0] if pcgamer_feed.entries else None
+            # Determine Edition Status
+            has_scoop = any([hit_1, hit_2, hit_3, hit_4])
+            paper_title = "📰 THE METROPOLIS DISPATCH  [SPECIAL EDITION]" if has_scoop else "📰 THE METROPOLIS DISPATCH"
+            paper_color = 0x34495e  # Deep Inkwell Grey (looks like actual newsprint)
+            
+            current_date = datetime.now().strftime("%B %d, %Y").upper()
 
-            # 2. Format Embed
-            embed = discord.Embed(title="THE VELOSOVEREIGN GAZETTE", color=0x2ecc71)
+            # Format Newspaper Layout
+            embed = discord.Embed(
+                title=paper_title,
+                description=f"**CITY EDITION • {current_date} • PRICE: FREE**\n" + "═" * 32,
+                color=paper_color
+            )
             
-            # Populate FRONT PAGE (IGN)
-            if front_page_story:
-                embed.add_field(
-                    name="📰 FRONT PAGE", 
-                    value=f"[{front_page_story.title}]({front_page_story.link})", 
-                    inline=False
-                )
+            # 1. FRONT PAGE DESK
+            if story_1:
+                prefix = "◆ **BREAKING:** " if hit_1 else "▫️ "
+                embed.add_field(name="LEAD CHRONICLE", value=f"{prefix}[{story_1.title}]({story_1.link})", inline=False)
             
-            # Populate THE HANGAR (GameSpot)
-            if the_hangar_story:
-                embed.add_field(
-                    name="🚀 THE HANGAR", 
-                    value=f"[{the_hangar_story.title}]({the_hangar_story.link})", 
-                    inline=False
-                )
+            # 2. THE HANGAR DESK
+            if story_2:
+                prefix = "◆ **BREAKING:** " if hit_2 else "▫️ "
+                embed.add_field(name="THE HANGAR & FRONTIER", value=f"{prefix}[{story_2.title}]({story_2.link})", inline=False)
             
-            # Populate THE CIRCUIT (PC Gamer)
-            if the_circuit_story:
-                embed.add_field(
-                    name="🏎️ THE CIRCUIT", 
-                    value=f"[{the_circuit_story.title}]({the_circuit_story.link})", 
-                    inline=False
-                )
+            # 3. THE CIRCUIT DESK
+            if story_3:
+                prefix = "◆ **BREAKING:** " if hit_3 else "▫️ "
+                embed.add_field(name="THE TECH CIRCUIT", value=f"{prefix}[{story_3.title}]({story_3.link})", inline=False)
+            
+            # 4. AUDIO & ENTERTAINMENT DESK
+            if story_4:
+                prefix = "◆ **BREAKING:** " if hit_4 else "▫️ "
+                embed.add_field(name="AMUSEMENTS & AUDIO", value=f"{prefix}[{story_4.title}]({story_4.link})", inline=False)
+
+            embed.add_field(name="═" * 32, value="*Late deliveries reported to local distributors.*", inline=False)
+            embed.set_footer(text="Published daily via GitHub Automation Services.")
         
-            # 3. Send DM (Forced for headless/cloud environments)
+            # Send DM
             user = await self.fetch_user(MY_USER_ID)
-            dm_channel = user.dm_channel
-            if dm_channel is None:
-                dm_channel = await user.create_dm()
-                
-            await dm_channel.send(content="🔔 **Sovereign Briefing Delivered.**", embed=embed)
-            print("Gazette delivered successfully!")
+            dm_channel = user.dm_channel or await user.create_dm()
+            await dm_channel.send(content="🗞️ **The morning paper has arrived.**", embed=embed)
+            print("Dispatch printed and delivered successfully.")
             
         except Exception as e:
-            print(f"An error occurred during execution: {e}")
+            print(f"Printing press error: {e}")
             
         finally:
-            # 4. Shut down (Task Complete)
-            print("Shutting down bot...")
             await self.close()
 
-# Ensure intents are handled
 intents = discord.Intents.default()
 intents.members = True 
 
-client = GazetteBot(intents=intents)
+client = DispatchBot(intents=intents)
 client.run(TOKEN)
