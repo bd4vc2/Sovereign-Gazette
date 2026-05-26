@@ -149,10 +149,11 @@ def fetch_project_logs():
     )
 
 def calculate_gta_countdown(current_local_time):
-    target_date = datetime(2026, 11, 1)  
+    # Strip the timezone info from current_local_time to make it naive,
+    # or make the target aware. Replacing target works perfectly:
+    target_date = datetime(2026, 11, 1, tzinfo=current_local_time.tzinfo)  
     delta = target_date - current_local_time
     return f"⏳ {delta.days} DAYS UNTIL GRAND THEFT AUTO VI EXPECTED LAUNCH" if delta.days > 0 else "🔥 GTA VI ACTIVE"
-
 def generate_daily_agenda(current_local_time):
     day_name = current_local_time.strftime("%A")
     if day_name in ["Monday", "Wednesday", "Friday"]:
